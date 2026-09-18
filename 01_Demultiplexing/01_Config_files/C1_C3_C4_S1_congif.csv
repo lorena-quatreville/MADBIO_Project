@@ -1,0 +1,15 @@
+[gene-expression],,
+reference,/mnt/project/MADBIO_Cameroun/Bioinfo_Mathieu/PROJECT/BIOINFO_RAWDATA/DEMULTIPLEXING/refdata-gex-GRCh38-2020-A,
+probe-set,/mnt/project/MADBIO_Cameroun/Bioinfo_Mathieu/PROJECT/BIOINFO_RAWDATA/DEMULTIPLEXING/Chromium_Human_Transcriptome_Probe_Set_v1.0.1_GRCh38-2020-A.csv,
+create-bam,false,
+,,
+[libraries],,
+fastq_id,fastqs,feature_types
+S006208_toS006211_SM4_NS6000_002,/mnt/project/MADBIO_Cameroun/Bioinfo_Mathieu/PROJECT/BIOINFO_RAWDATA/NS6000_R002_SM/NS6000_R002_07_05_24_SM_Mathieu/Fastq,Gene Expression
+,,
+[samples],,
+sample_id,probe_barcode_ids,description
+C3,BC001,Sc13
+C4,BC002,
+S1,BC003,
+C1,BC004,

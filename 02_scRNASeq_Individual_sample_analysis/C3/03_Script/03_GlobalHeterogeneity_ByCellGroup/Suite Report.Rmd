@@ -1,0 +1,188 @@
+
+#### Clusters functional enrichment {.tabset .tabset-fade}
+```{r rmd_heterogeneity_markerGenes_functional_enrichment, fig.dim = c(9, 9) }
+cat("\n<a href='#clusters-projection'>");
+useReduction='umap'; #c( 'umap', 'tsne');
+<<heterogeneity_dimReduc_thumbnail>>
+rm("useReduction");
+cat("</a> \n \n");
+
+<<heterogeneity_markerGenes_functional_enrichment>>
+```
+
+#### Cluster heatmap
+
+```{r rmd_heterogeneity_markerGenes_heatmap_mean, fig.dim = c(10, 10)}
+
+<<heterogeneity_markerGenes_heatmap_mean>>
+
+```
+
+<br /><br />
+
+
+
+## Chosen groups of genes
+
+### Heatmap of mean expression in clusters of groups of genes {.tabset .tabset-fade}
+
+```{r rmd_heterogeneity_chosenGroupGenes_heatmap_mean, fig.dim = c(11, 9)}
+
+<<heterogeneity_chosenGroupGenes_heatmap_mean>>
+
+```
+
+
+## Monitored genes
+```{r rmd_heterogeneity_monitoredGenes, warning = TRUE}
+<<heterogeneity_monitoredGenes>>
+```
+
+### Monitored genes heatmap
+
+Expression heatmap of monitored genes sorted by Seurat clusters:
+
+```{r rmd_heterogeneity_monitoredGenes_heatmap, fig.dim = c(8, min(1+(length(unlist(MONITORED_GENES))/10), 150))}
+<<heterogeneity_monitoredGenes_heatmap>>
+```
+
+### Monitored genes expression {.tabset .tabset-fade}
+
+#### UMAP {.tabset .tabset-fade}
+```{r rmd_heterogeneity_monitoredGenes_expression_projection_UMAP, fig.dim = c(4, 4), out.width='25%'}
+useReduction='umap'
+
+cat("\n<a href='#clusters-projection'>");
+<<heterogeneity_dimReduc_thumbnail>>
+cat("</a> \n \n");
+
+<<heterogeneity_monitoredGenes_expression_projection>>
+
+rm("useReduction");
+```
+
+<!-- Ending the tabset section -->
+<!-- #### {.toc-ignore} -->
+
+<!-- #### tSNE {.tabset .tabset-fade} -->
+<!-- ```{r rmd_heterogeneity_monitoredGenes_expression_projection_tSNE, fig.dim = c(4, 4), out.width='25%'} -->
+<!-- useReduction='tsne' -->
+
+<!-- cat("\n<a href='#clusters-projection'>"); -->
+<!-- #<<heterogeneity_dimReduc_thumbnail>> -->
+<!-- cat("</a> \n \n"); -->
+
+<!-- #<<heterogeneity_monitoredGenes_expression_projection>> -->
+
+<!-- rm("useReduction"); -->
+<!-- ``` -->
+
+<!-- <!-- Ending the tabset section --> -->
+<!-- #### {.toc-ignore} -->
+
+#### Clusters violin {.tabset .tabset-fade}
+```{r rmd_heterogeneity_monitoredGenes_expression_violin, fig.dim = c(4, 4), out.width='25%'}
+cat("\n<a href='#clusters-projection'>");
+useReduction='umap'; #c( 'umap', 'tsne');
+<<heterogeneity_dimReduc_thumbnail>>
+rm("useReduction");
+cat("</a> \n \n");
+
+<<heterogeneity_monitoredGenes_expression_violin>>
+```
+
+<!-- Ending the tabset section -->
+<!-- #### {.toc-ignore} -->
+
+<!-- Ending the tabset section -->
+<!-- ### {.toc-ignore} -->
+<br /><br />
+
+
+
+
+## Modules analysis
+```{r rmd_heterogeneity_modules}
+<<heterogeneity_modules>>
+<<heterogeneity_modules_scoring>>
+```
+
+### Modules scoring heatmap
+
+Heatmap of modules scoring sorted by Seurat clusters:
+
+```{r rmd_heterogeneity_modules_heatmap, fig.dim = c(8, min(1+(length(MODULES_GENES)/10), 150))}
+<<heterogeneity_modules_heatmap>>
+```
+
+### Modules scoring {.tabset .tabset-fade}
+
+#### UMAP {.tabset .tabset-fade .tabset-pills}
+```{r rmd_heterogeneity_modules_expression_projection_UMAP, fig.dim = c(4, 4), out.width='25%'}
+useReduction='umap'
+
+cat("\n<a href='#clusters-projection'>");
+#<<heterogeneity_dimReduc_thumbnail>>
+cat("</a> \n \n");
+
+<<heterogeneity_modules_expression_projection>>
+#<<heterogeneity_modules_expression_projection_pngFile>>
+
+rm("useReduction");
+```
+
+<!-- Ending the tabset section -->
+
+#### Clusters violin {.tabset .tabset-fade}
+```{r rmd_heterogeneity_modules_expression_violin, fig.dim = c(4, 4), out.width='25%'}
+cat("\n<a href='#clusters-projection'>");
+useReduction='umap'; #c( 'umap', 'tsne');
+#<<heterogeneity_dimReduc_thumbnail>>
+rm("useReduction");
+cat("</a> \n \n");
+
+<<heterogeneity_modules_expression_violin>>
+#<<heterogeneity_modules_expression_violin_pngFile>>
+```
+
+<!-- Ending the tabset section -->
+<!-- #### {.toc-ignore} -->
+
+
+
+```{r rmd_final_saveSessionImage}
+<<final_saveSessionImage>>
+```
+
+
+
+
+
+
+<!-- ### Elimination of sub-populations -->
+
+<!-- In this analysis we will write to file not wanted cells (cells in cluster 4 were analyzed as proliferative cells and cells in cluster 5 as contiminating cells) in order to have them removed from future analyses. -->
+
+<!-- ```{r rmd_removingMinoritySubPopulation} -->
+
+<!-- # Identify the cells to remove because they are proliferative cells -->
+<!-- cell_to_remove_proliferation = colnames(sc10x@data)[ sc10x@ident == 4] -->
+<!-- cat("<BR>Number of cells considerated as proliferative:", length( cell_to_remove_proliferation)) -->
+<!-- write.table( data.frame( cellid = cell_to_remove_proliferation), file=file.path( OUTPUT_DIR, "excluded_cells_proliferation.txt"), quote = FALSE, col.names = TRUE, row.names = FALSE, sep="\t") -->
+
+<!-- # Identify the cells to remove because they are contamination cells -->
+<!-- cell_to_remove_contamination = colnames( sc10x@data)[ sc10x@ident == 5] -->
+<!-- cat("<BR>Number of cells considerated as contamination:", length( cell_to_remove_contamination)) -->
+<!-- write.table( data.frame( cellid = cell_to_remove_contamination), file=file.path( OUTPUT_DIR, "excluded_cells_contamination.txt"), quote = FALSE, col.names = TRUE, row.names = FALSE, sep="\t") -->
+
+<!-- # Identify the cells to keep and export the filtered raw expression table to file -->
+<!-- cell_to_keep = colnames( sc10x@data)[ sc10x@ident %in% c(0,1,2,3)] -->
+
+<!-- df_raw_to_export = as.data.frame( as.matrix( sc10x@raw.data))[ , cell_to_keep] -->
+<!-- write.table( df_raw_to_export, file = file.path( OUTPUT_DIR, "filtered_raw_expression_matrix.csv"), quote = FALSE, col.names = TRUE, row.names = TRUE, sep="\t") -->
+
+<!-- df_norm_to_export = as.data.frame( as.matrix( sc10x@data))[ , cell_to_keep] -->
+<!-- write.table( df_norm_to_export, file = file.path( OUTPUT_DIR, "filtered_normalized_expression_matrix.csv"), quote = FALSE, col.names = TRUE, row.names = TRUE, sep="\t") -->
+
+<!-- cat("<BR>Number of cells to keep:", length( cell_to_keep)) -->
+<!-- ``` -->

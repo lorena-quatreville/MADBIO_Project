@@ -1,0 +1,64 @@
+
+# Plot the map with clusters with ggplot
+print(
+DimPlot( sc10x, 
+         reduction = ifelse(exists("useReduction"), useReduction, "umap"), 
+         group.by = "seurat_clusters",
+         label = TRUE) + 
+  ggtitle( "Map of cells with clusters")
+)
+
+
+
+############################## Plotting the percentage of mitochondrial genes
+
+# Plot the cells percentage of mitochondrial genes in UMAP  
+
+FeaturePlot( sc10x, reduction = ifelse(exists("useReduction"), useReduction, "umap"),
+             features = "percent.mito") + 
+  scale_colour_gradientn(colors = c(low = "#D0E1F9", high = "#053061")) +  # Light blue to dark
+  ggtitle( "Map of cells with level of percentage of\n mitochondrial genes")
+  
+############################ Plotting the presence of doublets
+
+DimPlot( sc10x, 
+           reduction = ifelse(exists("useReduction"), useReduction, "umap"), 
+           group.by = "multiplet_prediction",
+           label = TRUE) + 
+    ggtitle( "Map of doublet cells")
+
+
+########################### Feature/Gene count
+
+
+# plot if the cells are excluded by number of feature count or not
+
+DimPlot( sc10x, reduction = ifelse(exists("useReduction"), useReduction, "umap"),
+                  group.by = "outlier.nFeature_RNA") + 
+           ggtitle( "Map of cells by filter status \non nFeature_RNA value")
+
+# Plot the cells genes counts in UMAP
+FeaturePlot( sc10x, reduction = ifelse(exists("useReduction"), useReduction, "umap"),
+             features = "nFeature_RNA") + 
+  scale_colour_gradientn(colours = c(low = "#D0E1F9", high = "#053061")) +
+  ggtitle( "Map of cells with \nnumber of detected genes")
+
+
+
+########################### UMI/RNA count
+
+
+# plot if the cells are excluded by number of UMI count or not
+
+DimPlot( sc10x, reduction = ifelse(exists("useReduction"), useReduction, "umap"),
+                  group.by = "outlier.nCount_RNA") + 
+           ggtitle( "Map of cells by filter status \non nCount_RNA value")
+
+
+# Plot the cells RNA counts in UMAP
+FeaturePlot( sc10x, reduction = ifelse(exists("useReduction"), useReduction, "umap"),
+             features = "nCount_RNA") + 
+  scale_colour_gradientn(colours = c(low = "#D0E1F9", high = "#053061")) +
+  ggtitle( "Map of cells with RNA counts")
+
+

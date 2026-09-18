@@ -1,0 +1,109 @@
+
+## Explication choix modèle statistique
+
+### Fitting a genaralized linear mixed model (to take into account individual variability since samples are paired)
+
+# First possibility (from the scdney R package)
+res_GLMM <- fitGLM(res_BCa, condition=, subject_effect = TRUE, pairwise = TRUE,
+  fixed_only = FALSE, verbose = TRUE)
+
+# "condition=" # Time-point labels because Main predictor: Timepoint (T1 vs. T2)
+# subject_effect = TRUE : # Include random effects (individual variability)
+# pairwise = TRUE : because individuals are paired between the two time-points
+# and to see if the conditions has an effect on time-point differences in terms of cell type proportion, we need to use another command since this one does not allow a direct input of time/condition interaction
+
+# Second possibility (to assess the effect of phenotype on time cell proportion changes)
+
+### First possibility: absolute cell count comparison (poisson distribution of the residuals)
+
+## Article:https://bmcbioinformatics.biomedcentral.com/articles/10.1186/s12859-019-3211-9#MOESM1
+glmer(cell_count ~ cell_type + condition + cell_type:condition + (1 | subject), data, family=poisson(link=log)
+
+### Second possibility: cell proportion comparison (normal distribution of the residuals)
+
+## Chatgpt:
+library(lme4)
+
+# Merge scDC_noClustering results with metadata
+scDC_results_df <- merge(results, metadata, by.x = "sample", by.y = "Sample_ID")
+
+# Fit the mixed model with interaction
+fit_interaction <- lmer(
+  proportion ~ Timepoint * Condition + (1 | Individual), 
+  data = scDC_results_df
+)
+
+summary(fit_interaction)
+
+qqnorm(residuals(fit_interaction)) #to check if the residuals are normally distributed
+
+
+## DCATS
+
+
+library(DCATS)
+browseVignettes("DCATS")
+library(stringr)
+
+
+
+## Example:
+sampleID = str_c(immune.combined$stim,sample(c("s1", "s2"), length(Idents(immune.combined)), replace = TRUE))
+immune.combined = AddMetaData(immune.combined, sampleID, 'sample')
+
+# Visualization
+DimPlot(immune.combined, reduction = "umap", group.by = "sample")
+
+knn_mat = knn_simMat(immune.combined@graphs$integrated_snn, immune.combined$seurat_annotations)
+print(knn_mat)
+
+count_mat = table(immune.combined$sample, immune.combined$seurat_annotations)
+count_mat
+
+design_mat = data.frame(condition = c("CTRL", "CTRL", "STIM", "STIM"))
+dcats_GLM(count_mat, design_mat, similarity_mat = knn_mat)
+
+# Test
+
+# Define condition based on subject column
+condition <- ifelse(grepl("A72", sc10x$orig.ident), "Chronic", "Symptomatic")
+
+
+timepoint <- ifelse(grepl("tp1", sc10x$orig.ident), "tp1", "tp2")
+sc10x$time_point <- timepoint
+
+
+
+
+## If needed to load the merged sc10x object
+sc10x = readRDS(PATH_SEURAT_RDS_FILE)
+
+# Remove accidental line breaks in cluster names
+sc10x$cluster_renames <- gsub("\n", " ", sc10x$cluster_renames)
+sc10x$cluster_renames <- trimws(sc10x$cluster_renames)  # Remove leading/trailing spaces
+sc10x$cluster_renames <- gsub("\\s+", " ", sc10x$cluster_renames)  # Replace multiple spaces with single space
+sc10x$cluster_renames <- as.factor(sc10x$cluster_renames)  # Ensure it's a factor
+
+# compute KNN similaruty matrix
+knn_mat <- knn_simMat(sc10x@graphs$RNA_snn, sc10x$cluster_renames)  # Adjust if using another graph
+print(knn_mat)
+
+
+# Construct a count matrix
+count_mat <- table(sc10x$orig.ident, sc10x$cluster_renames)
+print(count_mat)
+
+# Construct a design matrix
+design_mat = data.frame(time_point = c("tp1", "tp2", "tp1", "tp2", "tp1", "tp2"))
+print(design_mat)
+
+# Run dacats_GLM()
+glm_results <- dcats_GLM(count_mat, design_mat, similarity_mat = knn_mat)
+
+# Saving the results
+# Save results as a CSV file 
+lapply(names(glm_results), function(name) {
+    write.csv(glm_results[[name]], paste0("glm_results_", name, ".csv"), row.names = TRUE)
+  })
+
+

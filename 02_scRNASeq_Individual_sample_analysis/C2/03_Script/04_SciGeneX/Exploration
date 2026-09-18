@@ -1,0 +1,205 @@
+##################################################### EXPLORATION ##########################################################################################
+
+
+########## Plot selected top genes in a selected module on UMAP 
+
+umap_one_module_topGenes <-function(module_nb, gene_nb){
+  # Select a module
+  gene_in_module <- cluster_feature_combine[[module_nb]]
+
+  # Select the number of top genes to plot in this module
+  selection_gene_in_module <- gene_in_module[1:gene_nb]
+  p_gene_module <-FeaturePlot_scCustom(sc10x, features =selection_gene_in_module, reduction  =  "umap", colors_use = viridis_light_high)& 
+  theme(text = element_text(size = 10))
+
+  for(i in 1:length(selection_gene_in_module)) {
+    p_gene_module[[i]] <- p_gene_module[[i]] + NoLegend() + NoAxes()
+  }
+  p_gene_module
+}
+
+########## Plotting a specific module individually on UMAP
+
+umap_one_module <- function(module_nb){
+  module_name_list = Module_name
+  module_name = module_name_list[module_nb]
+  p <-FeaturePlot_scCustom(sc10x_subset_sympto, features = module_name, reduction  =  "umap", colors_use = viridis_light_high,pt.size = 0.5) & 
+  theme(text = element_text(size = 10))
+
+  p[module_name] <- p[module_name] + NoLegend() + NoAxes()
+
+  module_nb_umap <- p+plot_layout(ncol = 1)
+  module_nb_umap
+  ggsave(filename = file.path( PATH_ANALYSIS_OUTPUT, paste0( outputFilesPrefix, module_nb, "FeaturePlot.png")), plot = p, device ="png", width = 23, height = 13, units ="cm")
+}
+
+####### Plotting cell groups isolated by the subclustering on UMAP
+
+
+umap_new_clusters <-  DimPlot( sc10x_CD4tcell, 
+           reduction = ifelse(exists("useReduction"), useReduction, "umap"), 
+           group.by = "seurat_clusters",
+           label = TRUE) + 
+    ggtitle( "Map of cells with clusters based on gene modules expression for CD4tcells")
+
+print(umap_new_clusters)
+
+
+##### Display heatmap for a specific module and top genes
+
+heatmap_one_module <- function(module_nb){
+
+  p_heatmap <- plot_ggheatmap(res_cluster_CD4tcell[module_nb,], ident = Seurat::Idents(sc10x_CD4tcell),use_top_genes = T)
+  # save plot
+  ggsave(plot = p_heatmap, filename = file.path(PATH_ANALYSIS_OUTPUT,  cellType, paste0("module_", module_nb,"_", outputFilesPrefix,SCIGENEX_METHOD,"_inflation_",SCIGENEX_INFLATION,"_heatmap.png"))
+       , width = 23, height = 13, units ="cm")
+
+  plot_heatmap(res_cluster[module_nb,],use_top_genes = T) #becarful heatmap interactive 
+}
+
+
+##### Enrichment analysis to visualize one module only
+enrich_BP_one_module <- function(module_nb) {
+  res_module_enrich <- enrich_go(res_cluster_CD4tcell, species = "Hsapiens", ontology = "BP")
+  viz_enrich(res_module_enrich,type = "dotplot", clusters =module_nb)
+}
+
+
+# Plot of each module and cell in the module 
+p <-FeaturePlot_scCustom(sc10x, features = Module_name, reduction  =  "umap", colors_use = viridis_light_high,pt.size = 0.05) & 
+  theme(text = element_text(size = 10))
+
+for(i in 1:length(Module_name)) {
+  p[[i]] <- p[[i]] + NoLegend() + NoAxes()
+}
+
+module_umap <- p+plot_layout(ncol = 7)
+module_umap
+# save plot
+ggsave(plot = module_umap, filename = file.path(PATH_ANALYSIS_OUTPUT, cellType, paste0(cellType, "_", outputFilesPrefix,SCIGENEX_METHOD,"_inflation_",SCIGENEX_INFLATION,"_module.png"))
+       , width = 23, height = 13, units ="cm")
+
+
+
+
+
+# Save markers list with one row per module, list of genes separated by a comma (for CellMarker2.0 handling)
+library(rlist)
+
+
+module_gene_list <- list()
+
+for (module_nb in 1:length(res_cluster@gene_clusters)) {
+    gene_vector <- res_cluster@gene_clusters[[module_nb]]
+    gene_list <- list(paste(gene_vector, collapse = ","))
+    module_gene_list <- list.append(module_gene_list, gene_list)
+   }
+# Convert list elements to a single string where elements are separated by commas
+    module_gene_string <- sapply(module_gene_list, function(x) paste(x, collapse = ","))
+
+write.csv(module_gene_string, file= file.path(PATH_ANALYSIS_OUTPUT, cellType, paste0(outputFilesPrefix, "ModuleGenes_list.csv")) , na='')
+
+
+
+
+#############" Plot of each module and cell in the module only for the 20 first modules
+Module_name_sub <- paste0("Module_", 41:60)
+
+p <-FeaturePlot_scCustom(sc10x_subtype, features = Module_name_sub, reduction  =  "umap", colors_use = viridis_light_high, pt.size = 0.05) & 
+  theme(text = element_text(size = 10))
+
+for(i in 1:length(Module_name_sub)) {
+  p[[i]] <- p[[i]] + NoLegend() + NoAxes()
+}
+
+module_umap <- p+plot_layout(ncol = 7)
+module_umap
+
+#save plot 
+ggsave(plot = module_umap, filename = file.path(PATH_ANALYSIS_OUTPUT, cellType, paste0(outputFilesPrefix, cellType, SCIGENEX_METHOD,"_inflation_",SCIGENEX_INFLATION,"_modules_umap_subclusters.png"))
+       , width = 23, height = 13, units ="cm")
+
+
+
+
+
+########################################################################### Cell clustering based on a cobination of modules ###############################################################################
+
+
+
+
+## for each module
+
+    # Set the SciGeneX cluster identity to 1
+    SciGeneX_cluster_nb = 1
+
+
+    # Extract module scores for module N
+
+
+    # Extract cells identity having a module score above a certain threshold (problem: when a module is overexpressed by two different clusters)
+
+
+    # for each module except module N
+    
+    
+        # if there is a number of cells over-expressing genes of the module N > threshold, extract module score for module n for cells extracted
+        
+        
+            # identify the proportion of cells having module n overexpressed, underexpressed or with no expression difference
+            
+            
+            # identify the type that is majoritary (in terms of proportion)
+            
+            
+            # if the number of cells of this type is above a certain threshold, filter out cells having module n underexpressed or not overexpressed
+            
+            
+            # Save the information of the module number that has been taken into account and if it's a module of under or overexpressed genes
+            
+
+           # In the metadata, for the cells retained, add the SciGeneX cluster they belong to. 
+           
+           
+           # Go to the next cluster
+           SciGeneX_cluster_nb = SciGeneX_cluster_nb + 1
+           
+           # Go to the next module
+           
+           
+    # Go to next module
+
+# Cluster cells using metadata SciGeneX cluster identification (on UMAP visualization, add one color per cluster combination)
+
+
+
+
+
+
+
+
+https://chatgpt.com/share/673caf27-fd4c-800d-ba75-607bfed5448e
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 

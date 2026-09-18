@@ -1,0 +1,179 @@
+
+# Plotting PCA plot grouped by smaple of origin
+
+# Plot PCA, highlighting seurat clusters for combination of dimensions
+invisible( apply( combn( 1:PCA_PLOTS_NBDIMS, 2), 2, function(dims)
+{
+  print( DimPlot( object=sc10x, reduction="pca", dims = dims, group.by = "orig.ident"));
+}));
+
+
+## PCA plot split by sample of origin
+
+## remove line breaks
+
+# Remove accidental line breaks in cluster names
+sc10x$cluster_renames <- gsub("\n", " ", sc10x$cluster_renames)
+sc10x$cluster_renames <- trimws(sc10x$cluster_renames)  # Remove leading/trailing spaces
+sc10x$cluster_renames <- gsub("\\s+", " ", sc10x$cluster_renames)  # Replace multiple spaces with single space
+sc10x$cluster_renames <- as.factor(sc10x$cluster_renames)  # Ensure it's a factor
+
+# Create and store the plots
+pca_plot <- DimPlot(object = sc10x, reduction = "pca", dims = c(1,2), split.by = "orig.ident", group.by = "cluster_renames", ncol = 3)
+
+print(pca_plot)
+
+# Save the plot with appropriate size
+ggsave(filename = file.path( PATH_ANALYSIS_OUTPUT, paste0( outputFilesPrefix, "PCA_plot_split_orig.png")), plot = pca_plot, width = 15, height = 10, dpi = 300)
+
+
+
+
+
+
+
+
+
+
+## UMAP
+
+## Plot UMAP with cluster names in the legend and split by sample of origin
+umap_split <- DimPlot(sc10x, group.by = "cluster_renames", split.by = "orig.ident", ncol= 3, label = FALSE) +
+  ggtitle("UMAP with Cluster Names") +
+  theme(legend.title = element_blank())
+print(umap_split)
+# Save the plot with appropriate size
+ggsave(filename = file.path( PATH_ANALYSIS_OUTPUT, paste0( outputFilesPrefix, "umap_plot_split_orig.png")), plot = umap_split, width = 15, height = 10, dpi = 300)
+
+
+## Same but highlighting possible T cell/B cell doublets
+
+# Generate UMAP plots split by sample origin and highlighting gene expression
+
+gene_of_interest = c("CD3D", "MS4A1")
+
+# Get unique sample identities
+idents <- unique(sc10x$orig.ident)
+
+# Generate individual plots for each sample of origin
+umap_plots <- lapply(idents, function(ident) {
+  FeaturePlot(sc10x, features = gene_of_interest, cells = rownames(sc10x@meta.data)[sc10x$orig.ident == ident]) + 
+    ggtitle(paste(ident))
+})
+
+# Arrange the plots in a grid with 3 columns
+umap_gene_split <- wrap_plots(umap_plots, ncol = 3)
+
+# Display the arranged plots
+print(umap_gene_split)
+
+# Save the plot with appropriate size
+ggsave(filename = file.path( PATH_ANALYSIS_OUTPUT, paste0( outputFilesPrefix, gene_of_interest, "FeaturePlot_split_orig.png")), plot = umap_gene_split, width = 15, height = 10, dpi = 300)
+
+
+
+## Plot UMAP with individual names in the legend and group by sample of origin
+
+# Plot the cells sample of origin in UMAP
+umap_group_orig <- DimPlot( sc10x, reduction = "umap", group.by = "orig.ident") + 
+  ggtitle( "Map of cells by sample of origin")
+print(umap_group_orig)
+# Save the plot with appropriate size
+ggsave(filename = file.path( PATH_ANALYSIS_OUTPUT, paste0( outputFilesPrefix, "umap_plot_group_orig.png")), plot = umap_group_orig, width = 12, height =8, dpi = 300)
+
+
+## Plot a UMAP group by condition (chronic vs symptomatic)
+
+# creating the "condition" in meta data
+condition_info <- c("03_scRNASeq_A73_AS_tp2" = "Chronic", "04_scRNASeq_A81_AS_tp2" ="Chronic", "06_scRNASeq_A72_AS_tp2" = "Chronic", "08_scRNASeq_A82_S_tp2"= "Symptomatic", "12_scRNASeq_A86_S_tp2" = "Symptomatic",  "13_scRNASeq_A62_AS_tp2" = "Chronic", "14_scRNASeq_A75_AS_tp2" = "Chronic", "15_scRNASeq_A76_S_tp2" = "Symptomatic", "16_scRNASeq_A83_AS_tp2" = "Chronic")
+
+sc10x$condition <- factor(sc10x$orig.ident, levels = names(condition_info), labels = condition_info)
+
+# Plot UMAP grouped by condition
+umap_condition <- DimPlot(sc10x, reduction = "umap", group.by = "condition") + 
+  ggtitle("UMAP Grouped by Condition") + 
+  theme(legend.title = element_blank())
+
+# Display the plot
+print(umap_condition)
+
+# Save the plot with appropriate size
+ggsave(filename = file.path( PATH_ANALYSIS_OUTPUT, paste0( outputFilesPrefix, "umap_plot_group_condition.png")), plot = umap_condition, width = 12, height =8, dpi = 300)
+
+
+
+## Plot UMAP grouped by simplified cluster names
+
+# Create a mapping for the broader cell type categories
+sc10x$cell_type_simplified <- sc10x$cluster_renames  # Copy the original column
+
+# Reassign the groups
+sc10x$cell_type_simplified[sc10x$cluster_renames %in% c("Classical monocytes", "Classical monocytes_2")] <- "Classical monocytes"
+sc10x$cell_type_simplified[sc10x$cluster_renames %in% c("Non-classical monocytes", "Non-classical monocytes_2", "Non-classical monocytes_3")] <- "Non-classical monocytes"
+sc10x$cell_type_simplified[sc10x$cluster_renames %in% c("Intermediate monocytes")] <- "Intermediate monocytes"
+
+# Convert to factor for correct ordering
+sc10x$cell_type_simplified <- factor(sc10x$cell_type_simplified, levels = c("Classical monocytes", "Intermediate monocytes", "Non-classical monocytes"))
+
+# Plot UMAP grouped by the new cell type categories
+umap_celltype <- DimPlot(sc10x, reduction = "umap", group.by = "cell_type_simplified") + 
+  ggtitle("UMAP Grouped by Simplified Cell Type") + 
+  theme(legend.title = element_blank())
+
+# Display the plot
+print(umap_celltype)
+
+# Save the plot with appropriate size
+ggsave(filename = file.path( PATH_ANALYSIS_OUTPUT, paste0( outputFilesPrefix, "umap_plot_group_simplified_cellType.png")), plot = umap_celltype, width = 12, height =8, dpi = 300)
+
+
+
+
+
+## Get the percentage of cells belonging to each individual in each cluster
+
+# Extract metadata
+metadata <- sc10x@meta.data
+
+# Count cells per cluster and individual
+cluster_composition <- metadata %>%
+  group_by(seurat_clusters, orig.ident) %>%
+  summarise(cell_count = n(), .groups = "drop") %>%
+  ungroup()
+
+# Calculate percentage of each individual in each cluster
+cluster_composition <- cluster_composition %>%
+  group_by(seurat_clusters) %>%
+  mutate(percent = (cell_count / sum(cell_count)) * 100) %>%
+  select(seurat_clusters, orig.ident, percent) %>%
+  pivot_wider(names_from = orig.ident, values_from = percent, values_fill = 0)  # Wide format for better readability
+
+# Write to a TSV file
+write.table(cluster_composition, file= file.path(PATH_ANALYSIS_OUTPUT, paste0(outputFilesPrefix, "cluster_compo_indiv.csv")), sep = "\t", row.names = FALSE, quote = FALSE)
+
+## Same but with the cell percentage belonging to each condition (chronic vs symptomatic)
+
+# Extract metadata
+metadata <- sc10x@meta.data
+
+# Count cells per cluster and condition
+cluster_condition_composition <- metadata %>%
+  group_by(seurat_clusters, condition) %>%
+  summarise(cell_count = n(), .groups = "drop") %>%
+  ungroup()
+
+# Calculate percentage of cells in each condition per cluster
+cluster_condition_composition <- cluster_condition_composition %>%
+  group_by(seurat_clusters) %>%
+  mutate(percent = (cell_count / sum(cell_count)) * 100) %>%
+  select(seurat_clusters, condition, percent) %>%
+  pivot_wider(names_from = condition, values_from = percent, values_fill = 0)  # Wide format for better readability
+
+# Write to a TSV file
+write.table(cluster_condition_composition, file= file.path(PATH_ANALYSIS_OUTPUT, paste0(outputFilesPrefix, "cluster_compo_condition.csv")), sep = "\t", row.names = FALSE, quote = FALSE)
+
+
+
+
+
+

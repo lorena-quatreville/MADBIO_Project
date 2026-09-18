@@ -1,0 +1,7 @@
+Ouvrir terminal dans R (Tools > Terminal > New terminal)
+
+Regarder dans Report.Rmd que seul les fichiers désirés ne sont pas en commentaire
+
+Se placer dans le répertoir où se trouve le fichier "launch_report_compilation.R" (cd etc)
+
+lancer le script en tapant dans le terminal: Rscript launch_reports_compilation.R
