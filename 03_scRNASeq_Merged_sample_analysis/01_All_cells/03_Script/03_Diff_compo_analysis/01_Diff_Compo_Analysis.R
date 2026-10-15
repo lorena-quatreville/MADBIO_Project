@@ -13,169 +13,6 @@ sc10x$sgx_clusters <- trimws(sc10x$sgx_clusters)  # Remove leading/trailing spac
 sc10x$sgx_clusters <- gsub("\\s+", " ", sc10x$sgx_clusters)  # Replace multiple spaces with single space
 sc10x$sgx_clusters <- as.factor(sc10x$sgx_clusters)  # Ensure it's a factor
 
-# compute KNN similaruty matrix
-knn_mat <- knn_simMat(sc10x@graphs$RNA_snn, sc10x$sgx_clusters)  # Adjust if using another graph
-print(knn_mat)
-
-
-# Construct a count matrix
-count_mat <- table(sc10x$orig.ident, sc10x$sgx_clusters)
-print(count_mat)
-
-# to take into account the condition
-# Reorder condition_info so it matches rownames(count_mat)
-condition_vec <- condition_info[rownames(count_mat)]
-
-# Build the design matrix taking into account the batch effect
-design_mat <- data.frame(
-   condition = condition_info[rownames(count_mat)],
-   batch = batch_info[rownames(count_mat)]
-)
-print(design_mat)
-
-
-# Run dacats_GLM()
-glm_results <- dcats_GLM(count_mat, design_mat, similarity_mat = knn_mat)
-print(glm_results)
-
-# Convert the list of lists into a single data frame
-glm_results_df <- data.frame(
-  Cell_Type = rownames(glm_results$coeffs),  # Keep only one column for cell types
-  Coefficients = glm_results$ceoffs[, 1],
-  Coeff_Error = glm_results$coeffs_err[, 1],
-  LR_Values = glm_results$LR_vals[, 1],
-  LRT_pvals = glm_results$LRT_pvals[, 1],
-  FDR = glm_results$fdr[, 1]
-)
-
-# Creat the new direcotory
-dir.create(file.path(PATH_ANALYSIS_OUTPUT))
-
-# Save to CSV file
-write.csv(glm_results_df, file= file.path(PATH_ANALYSIS_OUTPUT, paste0(outputFilesPrefix, "glm_results_batch.csv")), row.names = FALSE)
-
-
-
-## Doing the same but simplifying clusters
-
-# Simplify cluster labels
-sc10x$cluster_simplified <- case_when(
-  str_detect(sc10x$sgx_clusters, "Classical monocyte") ~ "Classical monocyte",
-  str_detect(sc10x$sgx_clusters, "Non-classical monocyte") ~ "Non-classical monocyte",
-  str_detect(sc10x$sgx_clusters, "Intermediate monocyte") ~ "Intermediate monocyte",
-  TRUE ~ sc10x$sgx_clusters
-)
-
-# Ensure the simplified cluster names are factors
-sc10x$cluster_simplified <- as.factor(sc10x$cluster_simplified)
-
-# Compute KNN similarity matrix
-knn_mat <- knn_simMat(sc10x@graphs$RNA_snn, sc10x$cluster_simplified)
-print(knn_mat)
-
-# Construct a count matrix with the simplified clusters
-count_mat <- table(sc10x$orig.ident, sc10x$cluster_simplified)
-print(count_mat)
-
-# Run DCATS differential composition analysis
-glm_results <- dcats_GLM(count_mat, design_mat, similarity_mat = knn_mat)
-print(glm_results)
-
-# Convert the list of lists into a single data frame
-glm_results_df <- data.frame(
-  Cell_Type = rownames(glm_results$coeffs),  # Keep only one column for cell types
-  Coefficients = glm_results$coeffs[, 1],
-  Coeff_Error = glm_results$coeffs_err[, 1],
-  LR_Values = glm_results$LR_vals[, 1],
-  LRT_pvals = glm_results$LRT_pvals[, 1],
-  FDR = glm_results$fdr[, 1]
-)
-
-# Create the output directory if it doesn't exist
-dir.create(file.path(PATH_ANALYSIS_OUTPUT), showWarnings = FALSE)
-
-# Save results to a CSV file
-write.csv(glm_results_df, file= file.path(PATH_ANALYSIS_OUTPUT, paste0(outputFilesPrefix, "glm_results_cluster_simplified_batch.csv")), row.names = FALSE)
-
-
-
-
-# to visualise the data with a boxplot (and significance bar)
-# Extracting the number of monocytes for each individual
-classical_counts <- count_mat[, "Classical monocyte"]
-
-# Retrieving the condition column in the design_mat
-conditions <- design_mat$condition[match(rownames(count_mat), rownames(design_mat))]
-
-# Build a data frame for plotting
-glm_results_plot <- data.frame(
-  Sample = rownames(count_mat),
-  Condition = conditions,
-  Count = classical_counts
-)
-
-# Optional: compute proportion if you want
-glm_results_plot$Proportion <- glm_results_plot$Count / rowSums(count_mat)
-
-# Get DCATS FDR for annotation
-fdr_val <- glm_results_df$FDR[glm_results_df$Cell_Type == "Classical monocyte"]
-
-# Custom colors
-cols <- c("Chronic" = "orange", "Symptomatic" = "red")
-
-# Dot plot per sample with group mean + FDR annotation
-glm_results_dotplot <- ggplot(glm_results_plot, aes(x = Condition, y = Proportion, color = Condition)) +
-  geom_jitter(width = 0.1, size = 5, alpha = 0.9) +
-  stat_summary(fun = mean, geom = "crossbar", width = 0.4, linewidth = 0.8,
-               color = "black", fatten = 0, alpha = 0.8) +
-     # --- Significance bar with DCATS p-value ---
-  geom_signif(
-    comparisons = list(c("Chronic", "Symptomatic")),
-    annotations = paste0("p = ", formatC(fdr_val, format = "e", digits = 1)),
-    y_position = max(glm_results_plot$Proportion) * 1.08,
-    tip_length = 0.01,
-    textsize = 7,
-    color = "black"     # <- makes the bar black
-  ) +
-  
-  # Colors
-  scale_color_manual(values = cols) +
-  
-  theme_classic(base_size = 16) +
-  labs(
-    title = "Classical Monocyte Proportions per Condition",
-    y = "Proportion",
-    x = ""
-  ) +
-  theme(
-    legend.position = "none",
-    # Bigger axis titles
-     # Bigger axis tick labels
-    axis.text.y = element_text(size = 18),
-    axis.text.x = element_text(size = 18),
-    axis.title.y = element_text(size = 20),
-    axis.title.x = element_text(size = 20),
-    plot.title = element_blank()
-
-  )+ 
-    scale_y_continuous(expand = expansion(mult = c(0.05, 0.15)))
-print(glm_results_dotplot)            
-              
-
-# Save figure
-ggsave(plot = glm_results_dotplot,
-       filename = file.path(PATH_ANALYSIS_OUTPUT, paste0(outputFilesPrefix, "DCATS_classical_monocytes_dotplot.png")),
-       width = 8, height = 6)
-
-
-
-
-
-
-
-
-## Doing the same but simplifying clusters of monocytes, CD4 effector, CD8 effector-NK and B cells
-
 # Duplicating original label first
 sc10x$cluster_simplified <- as.character(sc10x$sgx_clusters)
 
@@ -248,7 +85,26 @@ sc10x$cluster_simplified <- ifelse(
   sc10x$cluster_simplified
 )
 
+# Collapse proliferating cells cell variants automatically
+sc10x$cluster_simplified <- ifelse(
+  str_detect(sc10x$cluster_simplified, regex("Proliferating", ignore_case = TRUE)),
+  "Proliferating cell",
+  sc10x$cluster_simplified
+)
 
+# Collapse metabolically active cells cell variants automatically
+sc10x$cluster_simplified <- ifelse(
+  str_detect(sc10x$cluster_simplified, regex("metabolic", ignore_case = TRUE)),
+  "Metabolically active cell",
+  sc10x$cluster_simplified
+)
+
+# Collapse pro-inflammatory cells variants automatically
+sc10x$cluster_simplified <- ifelse(
+  str_detect(sc10x$cluster_simplified, regex("inflammatory", ignore_case = TRUE)),
+  "Pro-inflammatory cell",
+  sc10x$cluster_simplified
+)
 
 # Convert back to factor if needed
 sc10x$cluster_simplified <- factor(sc10x$cluster_simplified)
@@ -333,13 +189,160 @@ write.csv(
 )
 
 
+###
+## Plotting the corresponding UMAP
+###
+
+# Colors
+
+## Colors for each cluster
+# Custom palette for the 24 clusters (1 to 24)
+palette_24 <- c(
+  "#E69F00", # Cluster 1
+  "#56B4E9", # Cluster 2
+  "#009E73", # Cluster 3
+  "#F0E442", # Cluster 4
+  "#0072B2", # Cluster 5
+  "#D55E00", # Cluster 6
+  "#CC79A7", # Cluster 7
+  "#882255", # Cluster 8
+  "#44AA99", # Cluster 9
+  "#999933", # Cluster 10
+  "#AA4499", # Cluster 11
+  "#117733", # Cluster 12
+  "#332288", # Cluster 13
+  "#88CCEE", # Cluster 14
+  "#DDCC77", # Cluster 15
+  "#661100", # Cluster 16
+  "#6699CC", # Cluster 17
+  "#AA4466", # Cluster 18
+  "#228833", # Cluster 19
+  "#EE6677" # Cluster 20
+)
+
+# Get the 20 unique simplified cluster labels
+cluster_info <- data.frame(
+  cluster_name = unique(as.character(sc10x$cluster_simplified))
+) %>%
+  filter(!is.na(cluster_name)) %>%
+  arrange(cluster_name) %>%
+  mutate(
+    cluster_id = row_number(),
+    cluster_label = paste(cluster_id, cluster_name, sep = " - ")
+  )
+
+# Check that there are exactly 24 clusters
+stopifnot(nrow(cluster_info) == 19)
+
+# Display the correspondence between numbers and labels
+print(cluster_info)
 
 
+# Putting back cluster IDs in the seurat object
+# Create a mapping between simplified cluster names and numbered labels
+cluster_label_map <- setNames(
+  cluster_info$cluster_label,
+  cluster_info$cluster_name
+)
 
+# Add the numbered labels to the Seurat metadata
+sc10x$cluster_number_label <- unname(
+  cluster_label_map[as.character(sc10x$cluster_simplified)]
+)
 
+# Preserve the numerical order of clusters (1 to 20)
+sc10x$cluster_number_label <- factor(
+  sc10x$cluster_number_label,
+  levels = cluster_info$cluster_label
+)
 
+# Assign one color to each numbered cluster label
+cluster_colors <- setNames(
+  palette_24,
+  cluster_info$cluster_label
+)
 
+umap_inter_mono_prop_split <- DimPlot(
+  sc10x,
+  group.by = "cluster_number_label",
+  reduction = "umap",
+  cols = cluster_colors,
+  pt.size = 0.2,
+  label = FALSE
+) +
+  guides(
+    color = guide_legend(
+      override.aes = list(size = 3)
+    )
+  ) +
+  theme(
+    text = element_text(family = "Arial"),
+    axis.title = element_text(size = 22),
+    axis.text = element_text(size = 22),
+    strip.text = element_blank(),
+    plot.title = element_blank(),
+    legend.title = element_blank(),
+    legend.text = element_text(
+      family = "Arial",
+      size = 12
+    ),
+    legend.key.size = unit(0.6, "cm")
+  )
 
+# Extract plotting data
+plot_data <- umap_inter_mono_prop_split$data
+
+# Extract cluster numbers from the numbered labels
+plot_data$cluster_id <- sub(
+  " - .*",
+  "",
+  as.character(plot_data$cluster_number_label)
+)
+
+# Calculate cluster centers
+cluster_centers <- plot_data %>%
+  group_by(cluster_id) %>%
+  summarise(
+    UMAP_1 = median(UMAP_1),
+    UMAP_2 = median(UMAP_2),
+    .groups = "drop"
+  )
+
+# Add cluster numbers to the plot
+umap_inter_mono_prop_split <- umap_inter_mono_prop_split +
+  ggrepel::geom_text_repel(
+    data = cluster_centers,
+    aes(
+      x = UMAP_1,
+      y = UMAP_2,
+      label = cluster_id
+    ),
+    inherit.aes = FALSE,
+    size = 5,
+    family = "Arial",
+    fontface = "bold",
+    color = "black",
+    bg.color = "white",
+    bg.r = 0.15,
+    min.segment.length = 0,
+    max.overlaps = Inf
+  )
+
+ggsave(
+  plot = umap_inter_mono_prop_split,
+  filename = file.path(
+    PATH_ANALYSIS_OUTPUT,
+    paste0(
+      outputFilesPrefix,
+      "_harmomny_umap_cluster_simplified_numbered.pdf"
+    )
+  ),
+  width = 30,
+  height = 13,
+  units = "cm",
+  dpi = 600,
+  device = cairo_pdf
+)
 
 
 
@@ -359,6 +362,14 @@ knn_mat <- knn_mat[
 ]
 identical(colnames(count_mat), rownames(knn_mat))
 identical(colnames(count_mat), colnames(knn_mat))
+
+# Build the design matrix taking into account the batch effect
+design_mat <- data.frame(
+   condition = condition_info[rownames(count_mat)],
+   batch = batch_info[rownames(count_mat)]
+)
+print(design_mat)
+
 
 # Run DCATS differential composition analysis
 glm_results <- dcats_GLM(count_mat, design_mat, similarity_mat = knn_mat)
@@ -601,200 +612,10 @@ hist_cd8_nk = ggplot(cd8_nk_prop,
 ggsave(plot = hist_cd8_nk,
        filename = file.path(PATH_ANALYSIS_OUTPUT, paste0(outputFilesPrefix, "histogram_effector_CD8_NK.pdf")),
        width = 6, height = 4, device = cairo_pdf, dpi = 600)
-# saveRDS(PATH_SEURAT_RDS_FILE)
 
 
-
-
-                                    ###                                     ###
-                                        # Focusing on monocytes doublets #
-                                    ###                                     ###
-                                    
-                                    
-# 1) Multiplets
-
-
-
-## Plotting doublets based on SciGeneX clustering and identification
-
-sc10x$sgx_mono_multiplet <- as.character(sc10x$sgx_clusters)
-
-# Create sgx_mono_multiplet column
-sc10x$sgx_mono_multiplet <- ifelse(
-  grepl("monocyte", sc10x$sgx_mono_multiplet, ignore.case = TRUE) &
-    grepl("doublet|triplet", sc10x$sgx_mono_multiplet, ignore.case = TRUE),
-  "multiplet",
-  sc10x$sgx_mono_multiplet
-)
-
-## Plotting doublets based on SciGeneX clustering and identification
-
-
-# Convert to factor for consistency
-
-
-sgx_mono_multiplet_umap <- DimPlot(sc10x, group.by = "sgx_mono_multiplet", reduction = "umap") +
-  scale_color_manual(values = c("singlet" = "orange", "multiplet" = "purple")) +
-  ggtitle("Multiplet prediction based on SciGeneX signatures")
- 
-
-#save plot 
-ggsave(plot = sgx_mono_multiplet_umap, filename = file.path(PATH_ANALYSIS_OUTPUT, paste0(outputFilesPrefix, "_sgx_mono_multiplet_prediction_umap.png"))
-       , width = 23, height = 13, units ="cm")
-
-
-
-
-## same but split by condition (chronic vs sympto)
-sgx_mono_multiplet_umap_split <- DimPlot(sc10x, group.by = "sgx_mono_multiplet", split.by = "condition", reduction = "umap") +
-  scale_color_manual(values = c("singlet" = "orange", "multiplet" = "purple")) +
-  ggtitle("Multiplet prediction based on SciGeneX signatures")
-  
-#save plot 
-ggsave(plot = sgx_mono_multiplet_umap_split, filename = file.path(PATH_ANALYSIS_OUTPUT, paste0(outputFilesPrefix, "_sgx_mono_multiplet_prediction_umap_split.png"))
-       , width = 30, height = 13, units ="cm")
-
-
-# Same without legend and title
-
-sgx_mono_multiplet_umap_split <- DimPlot(sc10x, group.by = "sgx_mono_multiplet", split.by = "condition", reduction = "umap") +
-  scale_color_manual(values = c("singlet" = "orange", "multiplet" = "purple")) +
-  theme( plot.title = element_blank(), legend.position = "none")
-  
-#save plot 
-ggsave(plot = sgx_mono_multiplet_umap_split, filename = file.path(PATH_ANALYSIS_OUTPUT, paste0(outputFilesPrefix, "_sgx_mono_multiplet_prediction_umap_split_no_legend.png"))
-       , width = 30, height = 13, units ="cm")
-
-
-
-######### To compare multiplet type proportion between conditions (DCATS tool)
-
-
-# Construct a count matrix
-count_mat <- table(sc10x$orig.ident, sc10x$sgx_mono_multiplet)
-print(count_mat)
-
-
-# Create design matrix for DCATS
-# Reorder condition_info so it matches rownames(count_mat)
-condition_vec <- condition_info[rownames(count_mat)]
-
-# Build the design matrix taking into account the batch effect
-design_mat <- data.frame(
-   condition = condition_info[rownames(count_mat)],
-   batch = batch_info[rownames(count_mat)]
-)
-print(design_mat)
-
-
-# Creating the similarity matrix
-knn_mat <- knn_simMat(sc10x@graphs$RNA_snn, sc10x$sgx_mono_multiplet)
-
-# Run DCATS GLM
-glm_results <- dcats_GLM(
-  count_mat,
-  design_mat,
-  similarity_mat = knn_mat
-)
-print(glm_results)
-
-# Convert the list of lists into a single data frame
-glm_results_df <- data.frame(
-  Cell_Type = rownames(glm_results$coeffs),
-  Coefficient = glm_results$coeffs[, 1],
-  SE = glm_results$coeffs_err[, 1],
-  LRT = glm_results$LR_vals[, 1],
-  pval = glm_results$LRT_pvals[, 1],
-  FDR = glm_results$fdr[, 1]
-)
-
-print(glm_results_df)
-
-
-# Save to CSV file
-write.csv(glm_results_df, file= file.path(PATH_ANALYSIS_OUTPUT, paste0(outputFilesPrefix, "glm_res_multiplet_singlet_batch.csv")), row.names = FALSE)
-
-
-
-
-
-# Visualization
-
-# Extracting the number of monocytes for each individual
-sig_doublet_counts <- count_mat[, "multiplet"]
-
-# Retrieving the condition column in the design_mat
-conditions <- design_mat$condition[match(rownames(count_mat), rownames(design_mat))]
-
-# Build a data frame for plotting
-glm_results_plot <- data.frame(
-  Sample = rownames(count_mat),
-  Condition = conditions,
-  Count = sig_doublet_counts
-)
-
-# Optional: compute proportion if you want
-glm_results_plot$Proportion <- glm_results_plot$Count / rowSums(count_mat)
-
-# Get DCATS FDR for annotation
-fdr_val <- glm_results_df$FDR[glm_results_df$Cell_Type == "multiplet"]
-
-# Custom colors
-cols <- c("Chronic" = "orange", "Symptomatic" = "red")
-
-# Dot plot per sample with group mean + FDR annotation
-glm_results_dotplot <- ggplot(glm_results_plot, aes(x = Condition, y = Proportion, color = Condition)) +
-  geom_quasirandom(width = 0.1, size = 5, alpha = 0.9) +
-  stat_summary(fun = mean, geom = "crossbar", width = 0.4, linewidth = 0.8, # size for the thickness of the mean bar
-               color = "black", fatten = 0, alpha = 0.8) +
-     # --- Significance bar with DCATS p-value ---
-  geom_signif(
-    comparisons = list(c("Chronic", "Symptomatic")),
-    annotations = paste0("p = ", formatC(fdr_val, format = "e", digits = 1)),
-    y_position = max(glm_results_plot$Proportion) * 1.08,
-    tip_length = 0.01,
-    textsize = 7,
-    color = "black"     # <- makes the bar black
-  ) +
-  
-  # Colors
-  scale_color_manual(values = cols) +
-  
-  theme_classic(base_size = 16) +
-  labs(
-    title = "Multiplet proportions per condition",
-    y = "Proportion",
-    x = ""
-  ) +
-  theme(
-    legend.position = "none",
-     # Bigger axis titles
-     # Bigger axis tick labels
-    axis.text.y = element_text(size = 18),
-    axis.text.x = element_text(size = 18),
-    axis.title.y = element_text(size = 20),
-    axis.title.x = element_text(size = 20),
-    plot.title = element_blank()
-
-  )+ 
-    scale_y_continuous(expand = expansion(mult = c(0.05, 0.15)))
-print(glm_results_dotplot)            
-              
-
-# Save figure
-ggsave(plot = glm_results_dotplot,
-       filename = file.path(PATH_ANALYSIS_OUTPUT, paste0(outputFilesPrefix, "DCATS_multiplet_dotplot.png")),
-       width = 8, height = 6)
-
-
-
-# 2) Multiplet types: singlet, doublet, triplet
-
-
-
-
-
-
+# Saving the Seurat object
+saveRDS(PATH_SEURAT_RDS_FILE)
 
 
 
